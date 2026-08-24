@@ -1,0 +1,25 @@
+{
+  "collections": {
+    "appointments": {
+      "schema": {
+        "service": "string",
+        "date": "string",
+        "time": "string",
+        "name": "string",
+        "phone": "string",
+        "email": "string",
+        "notes": "string",
+        "status": "string",
+        "createdAt": "timestamp"
+      }
+    },
+    "chat_logs": {
+      "schema": {
+        "sessionId": "string",
+        "role": "string",
+        "content": "string",
+        "timestamp": "timestamp"
+      }
+    }
+  }
+}

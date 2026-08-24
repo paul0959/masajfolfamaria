@@ -1,0 +1,6 @@
+export default {
+  "name": "Folfa Maria Masaj",
+  "description": "Platformă premium de programări și chatbot AI pentru cabinetul de masaj al Mariei Folfa.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+};
