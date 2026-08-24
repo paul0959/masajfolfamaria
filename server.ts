@@ -92,7 +92,7 @@ async function startServer() {
       res.status(500).json({ error: 'Eroare la procesarea cererii către AI: ' + (error.message || String(error)) });
     }
   });
-
+app.use(express.static(path.join(process.cwd(), 'public')));
   // AICI ESTE MODIFICAREA: Servim FORȚAT fișierele din folderul dist pentru Render
   const distPath = path.join(process.cwd(), 'dist');
   app.use(express.static(distPath));
