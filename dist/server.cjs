@@ -24,7 +24,6 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 // server.ts
 var import_express = __toESM(require("express"), 1);
 var import_path = __toESM(require("path"), 1);
-var import_vite = require("vite");
 var import_genai = require("@google/genai");
 var import_dotenv = __toESM(require("dotenv"), 1);
 var import_nodemailer = __toESM(require("nodemailer"), 1);
@@ -122,19 +121,11 @@ Maria Folfa - Tehnician Maseur`
       res.status(500).json({ error: "Eroare la procesarea cererii c\u0103tre AI: " + (error.message || String(error)) });
     }
   });
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await (0, import_vite.createServer)({
-      server: { middlewareMode: true },
-      appType: "spa"
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = import_path.default.join(process.cwd(), "dist");
-    app.use(import_express.default.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(import_path.default.join(distPath, "index.html"));
-    });
-  }
+  const distPath = import_path.default.join(process.cwd(), "dist");
+  app.use(import_express.default.static(distPath));
+  app.get("*", (req, res) => {
+    res.sendFile(import_path.default.join(distPath, "index.html"));
+  });
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server rul\xE2nd pe portul ${PORT}`);
   });

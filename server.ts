@@ -1,6 +1,5 @@
 import express from 'express';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
@@ -54,10 +53,7 @@ async function startServer() {
         console.error("Eroare initializare email:", emailErr);
       }
 
-      // 2. Logare Calendar
       console.log(`[Google Calendar] Solicitare de blocare pentru: ${date} ora ${time}`);
-
-      // 3. Returnează succes către client
       res.json({ success: true, message: 'Procesat cu succes.' });
     } catch (error) {
       console.error('Eroare backend book API:', error);
@@ -66,8 +62,6 @@ async function startServer() {
       }
     }
   });
-
-
 
   // API Endpoint pentru Chatbot Gemini
   app.post('/api/chat', async (req, res) => {
@@ -80,7 +74,6 @@ async function startServer() {
 
       const systemInstruction = `Ești Mia, asistenta virtuală a Mariei Folfa, un tehnician maseur profesionist (activă din 2018). Cabinetul este în Localitatea Șanț, strada Principală, nr 931, jud. Bistrița-Năsăud. Răspunzi politicos, prietenos, calm și concis la întrebări despre masaje, beneficii și locație. Ești caldă, empatică și folosești un ton relaxant (poți folosi emoji-uri potrivite precum 🌸, ✨, 🌿). Oferi doar informații legate de serviciile noastre. Direcționezi clientul să se programeze online apasand butonul din pagina. Nu inventa prețuri dacă nu ești sigură, spune-i clientului să verifice secțiunea de servicii.`;
 
-      // Simplified chat formatting - append history context
       const context = history && history.length > 0 
         ? "Istoric conversație:\n" + history.map((h: any) => `${h.role}: ${h.content}`).join("\n") + "\n\nMesaj nou: " 
         : "";
@@ -100,21 +93,12 @@ async function startServer() {
     }
   });
 
-  // Vite Middleware pentru dezvoltare
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    // Servire fișiere statice pentru producție
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
+  // AICI ESTE MODIFICAREA: Servim FORȚAT fișierele din folderul dist pentru Render
+  const distPath = path.join(process.cwd(), 'dist');
+  app.use(express.static(distPath));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server rulând pe portul ${PORT}`);
