@@ -121,6 +121,7 @@ Maria Folfa - Tehnician Maseur`
       res.status(500).json({ error: "Eroare la procesarea cererii c\u0103tre AI: " + (error.message || String(error)) });
     }
   });
+  app.use(import_express.default.static(import_path.default.join(process.cwd(), "public")));
   const distPath = import_path.default.join(process.cwd(), "dist");
   app.use(import_express.default.static(distPath));
   app.get("*", (req, res) => {
