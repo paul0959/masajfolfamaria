@@ -2,7 +2,6 @@ import express from 'express';
 import path from 'path';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
-import nodemailer from 'nodemailer';
 
 // --- IMPORTĂM FIREBASE ---
 import { initializeApp } from 'firebase/app';
@@ -53,42 +52,59 @@ async function startServer() {
          console.error("Eroare la salvarea în baza de date:", dbErr);
       }
 
-      // TRIMITERE EMAIL
+      // 1. TRIMITERE EMAIL CĂTRE ADMINISTRATOR (EmailJS)
       try {
-       const transporter = nodemailer.createTransport({
-          host: 'smtp.gmail.com',
-          port: 587, // Schimbăm portul de la 465 la 587
-          secure: false, // Obligatoriu "false" pentru portul 587
-          requireTLS: true, // Forțăm securizarea pe ușa alternativă
-          auth: {
-            user: 'terapeutmaria@gmail.com',
-            pass: process.env.EMAIL_APP_PASSWORD || 'iledsyhpaoyfunoj'
-          },
-          tls: {
-            rejectUnauthorized: false
+        const payloadAdmin = {
+          service_id: 'service_ozdh5vo',
+          template_id: 'template_ttdpsfh',
+          user_id: '9hW5rySbyy76L-RZr',
+          template_params: {
+            nume: name,
+            telefon: phone,
+            email: email || 'Nu a lăsat',
+            serviciu: serviceName,
+            data: date,
+            ora: time
           }
-        });
-
-        const mailOptionsAdmin = {
-          from: 'terapeutmaria@gmail.com',
-          to: 'terapeutmaria@gmail.com',
-          subject: `NOUĂ PROGRAMARE: ${name} - ${serviceName}`,
-          text: `Ai primit o nouă programare!\n\nDetalii client:\nNume: ${name}\nTelefon: ${phone}\nEmail: ${email}\n\nDetalii serviciu:\nServiciu: ${serviceName}\nData: ${date}\nOra: ${time}\n\nProgramarea a fost salvată în baza de date.`
         };
 
-        const mailOptionsClient = email ? {
-          from: 'terapeutmaria@gmail.com',
-          to: email,
-          subject: `Confirmare Programare - Cabinet Masaj Terapeutic Maria Folfa`,
-          text: `Bună ${name},\n\nÎți mulțumesc pentru încredere! Programarea ta a fost înregistrată și confirmată cu succes.\n\nDetalii Programare:\nServiciu: ${serviceName}\nData: ${date}\nOra: ${time}\n\nLocație: Loc. Șanț, str. Principală nr. 931, jud. Bistrița-Năsăud.\n\nTe aștept cu drag la o sesiune de relaxare și echilibru.\n\nCu prietenie,\nMaria Folfa`
-        } : null;
+        fetch('https://api.emailjs.com/api/v1.0/email/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payloadAdmin)
+        }).then(res => {
+          if (res.ok) console.log("Email Admin trimis cu succes!");
+        }).catch(err => console.error("Eroare admin email:", err));
+      } catch (e) {
+        console.error("Eroare try-catch admin:", e);
+      }
 
-        transporter.sendMail(mailOptionsAdmin).catch(err => console.error("Eroare admin email:", err));
-        if (mailOptionsClient) {
-          transporter.sendMail(mailOptionsClient).catch(err => console.error("Eroare client email:", err));
+      // 2. TRIMITERE EMAIL CĂTRE CLIENT (Doar dacă a scris un email valid)
+      if (email && email.includes('@')) {
+        try {
+          const payloadClient = {
+            service_id: 'service_ozdh5vo',
+            template_id: 'template_faubiae',
+            user_id: '9hW5rySbyy76L-RZr',
+            template_params: {
+              nume: name,
+              email: email, 
+              serviciu: serviceName,
+              data: date,
+              ora: time
+            }
+          };
+
+          fetch('https://api.emailjs.com/api/v1.0/email/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payloadClient)
+          }).then(res => {
+            if (res.ok) console.log("Email Client trimis cu succes!");
+          }).catch(err => console.error("Eroare client email:", err));
+        } catch (e) {
+          console.error("Eroare try-catch client:", e);
         }
-      } catch (emailErr) {
-        console.error("Eroare initializare email:", emailErr);
       }
 
       res.json({ success: true, message: 'Procesat cu succes.' });
