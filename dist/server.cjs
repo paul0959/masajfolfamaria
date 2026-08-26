@@ -26,7 +26,6 @@ var import_express = __toESM(require("express"), 1);
 var import_path = __toESM(require("path"), 1);
 var import_genai = require("@google/genai");
 var import_dotenv = __toESM(require("dotenv"), 1);
-var import_https = __toESM(require("https"), 1);
 var import_app = require("firebase/app");
 var import_firestore = require("firebase/firestore");
 import_dotenv.default.config();
@@ -41,22 +40,6 @@ var firebaseConfig = {
 var firebaseApp = (0, import_app.initializeApp)(firebaseConfig);
 var db = (0, import_firestore.getFirestore)(firebaseApp);
 var ai = new import_genai.GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "MISSING_KEY" });
-function trimiteEmailJS(payload) {
-  const data = JSON.stringify(payload);
-  const req = import_https.default.request("https://api.emailjs.com/api/v1.0/email/send", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Content-Length": Buffer.byteLength(data)
-    }
-  }, (res) => {
-    if (res.statusCode !== 200) console.error("Eroare EmailJS:", res.statusCode);
-    else console.log("Email expediat cu succes!");
-  });
-  req.on("error", (e) => console.error("Eroare re\u021Bea EmailJS:", e));
-  req.write(data);
-  req.end();
-}
 async function startServer() {
   const app = (0, import_express.default)();
   const PORT = process.env.PORT || 3e3;
@@ -73,67 +56,67 @@ async function startServer() {
         time,
         dataCreare: (0, import_firestore.serverTimestamp)()
       });
-      console.log("Programare salvat\u0103 \xEEn Firebase!");
-      res.json({ success: true, message: "Procesat cu succes." });
-      try {
-        trimiteEmailJS({
-          service_id: "service_ozdh5vo",
-          template_id: "template_ttdpsfh",
-          user_id: "9hW5rySbyy76L-RZr",
-          template_params: { nume: name, telefon: phone, email: email || "Nu a l\u0103sat", serviciu: serviceName, data: date, ora: time }
-        });
-        if (email && email.includes("@")) {
-          trimiteEmailJS({
-            service_id: "service_ozdh5vo",
-            template_id: "template_faubiae",
-            user_id: "9hW5rySbyy76L-RZr",
-            template_params: { nume: name, email, serviciu: serviceName, data: date, ora: time }
-          });
-        }
-      } catch (emailErr) {
-        console.error("Eroare execu\u021Bie email:", emailErr);
-      }
+      console.log("Programare salvat\u0103 \xEEn Firebase cu succes!");
+      res.json({ success: true, message: "Programare salvat\u0103 cu succes." });
     } catch (error) {
-      console.error("Eroare backend book API:", error);
-      if (!res.headersSent) res.status(500).json({ error: "Eroare intern\u0103." });
+      console.error("Eroare la salvarea \xEEn baza de date:", error);
+      res.status(500).json({ error: "Eroare la salvarea program\u0103rii." });
     }
   });
   app.post("/api/reviews", async (req, res) => {
     try {
-      await (0, import_firestore.addDoc)((0, import_firestore.collection)(db, "recenzii"), { ...req.body, dataCreare: (0, import_firestore.serverTimestamp)() });
+      const { author, rating, text } = req.body;
+      await (0, import_firestore.addDoc)((0, import_firestore.collection)(db, "recenzii"), {
+        author,
+        rating,
+        text,
+        dataCreare: (0, import_firestore.serverTimestamp)()
+      });
       res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ error: "Eroare." });
+      console.error("Eroare adaugare recenzie:", error);
+      res.status(500).json({ error: "Eroare la salvarea recenziei." });
     }
   });
   app.get("/api/reviews", async (req, res) => {
     try {
       const q = (0, import_firestore.query)((0, import_firestore.collection)(db, "recenzii"), (0, import_firestore.orderBy)("dataCreare", "desc"));
       const querySnapshot = await (0, import_firestore.getDocs)(q);
-      res.json(querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      const recenzii = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      res.json(recenzii);
     } catch (error) {
-      res.status(500).json({ error: "Eroare." });
+      console.error("Eroare citire recenzii:", error);
+      res.status(500).json({ error: "Eroare la citirea recenziilor." });
     }
   });
   app.post("/api/chat", async (req, res) => {
     try {
       const { message, history } = req.body;
-      if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: "Cheie lips\u0103." });
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ error: "GEMINI_API_KEY lipse\u0219te." });
+      }
+      const systemInstruction = `E\u0219ti Mia, asistenta virtual\u0103 a Mariei Folfa, un tehnician maseur profesionist (activ\u0103 din 2018). Cabinetul este \xEEn Localitatea \u0218an\u021B, strada Principal\u0103, nr 931, jud. Bistri\u021Ba-N\u0103s\u0103ud. R\u0103spunzi politicos, prietenos, calm \u0219i concis la \xEEntreb\u0103ri despre masaje, beneficii \u0219i loca\u021Bie.`;
+      const context = history && history.length > 0 ? "Istoric conversa\u021Bie:\n" + history.map((h) => `${h.role}: ${h.content}`).join("\n") + "\n\nMesaj nou: " : "";
       const response = await ai.models.generateContent({
         model: "gemini-3.6-flash",
-        contents: (history ? history.map((h) => `${h.role}: ${h.content}`).join("\n") + "\n\n" : "") + message,
-        config: { systemInstruction: `E\u0219ti Mia...` }
+        contents: context + message,
+        config: { systemInstruction }
       });
       res.json({ reply: response.text });
     } catch (error) {
-      res.status(500).json({ error: "Eroare AI" });
+      console.error("Eroare Gemini:", error);
+      res.status(500).json({ error: "Eroare AI." });
     }
   });
   app.use(import_express.default.static(import_path.default.join(process.cwd(), "public")));
   const distPath = import_path.default.join(process.cwd(), "dist");
   app.use(import_express.default.static(distPath));
-  app.get("*", (req, res) => res.sendFile(import_path.default.join(distPath, "index.html")));
-  app.listen(PORT, "0.0.0.0", () => console.log(`Server rul\xE2nd pe portul ${PORT}`));
+  app.get("*", (req, res) => {
+    res.sendFile(import_path.default.join(distPath, "index.html"));
+  });
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server rul\xE2nd pe portul ${PORT}`);
+  });
 }
 startServer();
 //# sourceMappingURL=server.cjs.map
