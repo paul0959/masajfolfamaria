@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
+import https from 'https';
 
 // --- IMPORTĂM FIREBASE ---
 import { initializeApp } from 'firebase/app';
@@ -21,8 +22,25 @@ const firebaseConfig = {
 
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
-
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || 'MISSING_KEY' });
+
+// Funcție nativă Node.js pentru EmailJS (nu pică pe nicio versiune Render)
+function trimiteEmailJS(payload: any) {
+  const data = JSON.stringify(payload);
+  const req = https.request('https://api.emailjs.com/api/v1.0/email/send', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(data)
+    }
+  }, (res) => {
+    if (res.statusCode !== 200) console.error("Eroare EmailJS:", res.statusCode);
+    else console.log("Email expediat cu succes!");
+  });
+  req.on('error', (e) => console.error("Eroare rețea EmailJS:", e));
+  req.write(data);
+  req.end();
+}
 
 async function startServer() {
   const app = express();
@@ -34,101 +52,44 @@ async function startServer() {
     try {
       const { name, phone, email, serviceName, date, time } = req.body;
 
-      // 1. SALVARE ÎN FIREBASE
-      try {
-         await addDoc(collection(db, 'programari'), {
-            name,
-            phone,
-            email: email || '',
-            serviceName,
-            date,
-            time,
-            dataCreare: serverTimestamp()
-         });
-         console.log("Programare salvată în Firebase cu succes!");
-      } catch (dbErr) {
-         console.error("Eroare la salvarea în baza de date:", dbErr);
-      }
+      // 1. SALVARE ÎN FIREBASE (Prioritate maximă)
+      await addDoc(collection(db, 'programari'), {
+        name, phone, email: email || '', serviceName, date, time, dataCreare: serverTimestamp()
+      });
+      console.log("Programare salvată în Firebase!");
 
-      // 2. TRIMITERE EMAIL CĂTRE ADMINISTRATOR (EmailJS)
+      // 2. RĂSPUNS INSTANT CĂTRE SITE (Deblochează clientul)
+      res.json({ success: true, message: 'Procesat cu succes.' });
+
+      // 3. TRIMITERE EMAILURI ÎN FUNDAL
       try {
-        const payloadAdmin = {
+        trimiteEmailJS({
           service_id: 'service_ozdh5vo',
           template_id: 'template_ttdpsfh',
           user_id: '9hW5rySbyy76L-RZr',
-          template_params: {
-            nume: name,
-            telefon: phone,
-            email: email || 'Nu a lăsat',
-            serviciu: serviceName,
-            data: date,
-            ora: time
-          }
-        };
-
-        const responseAdmin = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payloadAdmin)
+          template_params: { nume: name, telefon: phone, email: email || 'Nu a lăsat', serviciu: serviceName, data: date, ora: time }
         });
-        
-        if (responseAdmin.ok) {
-           console.log("Email Admin trimis cu succes!");
-        } else {
-           const errText = await responseAdmin.text();
-           console.error("Eroare de la EmailJS (Admin):", errText);
-        }
-      } catch (e) {
-        console.error("Eroare rețea admin:", e);
-      }
 
-      // 3. TRIMITERE EMAIL CĂTRE CLIENT
-      if (email && email.includes('@')) {
-        try {
-          const payloadClient = {
+        if (email && email.includes('@')) {
+          trimiteEmailJS({
             service_id: 'service_ozdh5vo',
             template_id: 'template_faubiae',
             user_id: '9hW5rySbyy76L-RZr',
-            template_params: {
-              nume: name,
-              email: email, 
-              serviciu: serviceName,
-              data: date,
-              ora: time
-            }
-          };
-
-          const responseClient = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payloadClient)
+            template_params: { nume: name, email: email, serviciu: serviceName, data: date, ora: time }
           });
-
-          if (responseClient.ok) {
-             console.log("Email Client trimis cu succes!");
-          } else {
-             const errText = await responseClient.text();
-             console.error("Eroare de la EmailJS (Client):", errText);
-          }
-        } catch (e) {
-          console.error("Eroare rețea client:", e);
         }
+      } catch (emailErr) {
+        console.error("Eroare execuție email:", emailErr);
       }
-
-      // Răspunsul este trimis abia DUPĂ ce emailurile au fost procesate
-      res.json({ success: true, message: 'Procesat cu succes.' });
     } catch (error) {
       console.error('Eroare backend book API:', error);
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'Eroare internă la procesare.' });
-      }
+      if (!res.headersSent) res.status(500).json({ error: 'Eroare internă.' });
     }
   });
 
   app.post('/api/reviews', async (req, res) => {
     try {
-      const { author, rating, text } = req.body;
-      await addDoc(collection(db, 'recenzii'), { author, rating, text, dataCreare: serverTimestamp() });
+      await addDoc(collection(db, 'recenzii'), { ...req.body, dataCreare: serverTimestamp() });
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: 'Eroare.' });
@@ -149,14 +110,13 @@ async function startServer() {
     try {
       const { message, history } = req.body;
       if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: 'Cheie lipsă.' });
-      
       const response = await ai.models.generateContent({
         model: 'gemini-3.6-flash',
         contents: (history ? history.map((h: any) => `${h.role}: ${h.content}`).join("\n") + "\n\n" : "") + message,
-        config: { systemInstruction: `Ești Mia, asistenta virtuală...` }
+        config: { systemInstruction: `Ești Mia...` }
       });
       res.json({ reply: response.text });
-    } catch (error: any) {
+    } catch (error) {
       res.status(500).json({ error: 'Eroare AI' });
     }
   });
@@ -164,12 +124,8 @@ async function startServer() {
   app.use(express.static(path.join(process.cwd(), 'public')));
   const distPath = path.join(process.cwd(), 'dist');
   app.use(express.static(distPath));
-  
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'));
-  });
+  app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html')));
 
   app.listen(PORT, '0.0.0.0', () => console.log(`Server rulând pe portul ${PORT}`));
 }
-
 startServer();

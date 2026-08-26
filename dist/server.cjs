@@ -26,6 +26,7 @@ var import_express = __toESM(require("express"), 1);
 var import_path = __toESM(require("path"), 1);
 var import_genai = require("@google/genai");
 var import_dotenv = __toESM(require("dotenv"), 1);
+var import_https = __toESM(require("https"), 1);
 var import_app = require("firebase/app");
 var import_firestore = require("firebase/firestore");
 import_dotenv.default.config();
@@ -40,6 +41,22 @@ var firebaseConfig = {
 var firebaseApp = (0, import_app.initializeApp)(firebaseConfig);
 var db = (0, import_firestore.getFirestore)(firebaseApp);
 var ai = new import_genai.GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "MISSING_KEY" });
+function trimiteEmailJS(payload) {
+  const data = JSON.stringify(payload);
+  const req = import_https.default.request("https://api.emailjs.com/api/v1.0/email/send", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Content-Length": Buffer.byteLength(data)
+    }
+  }, (res) => {
+    if (res.statusCode !== 200) console.error("Eroare EmailJS:", res.statusCode);
+    else console.log("Email expediat cu succes!");
+  });
+  req.on("error", (e) => console.error("Eroare re\u021Bea EmailJS:", e));
+  req.write(data);
+  req.end();
+}
 async function startServer() {
   const app = (0, import_express.default)();
   const PORT = process.env.PORT || 3e3;
@@ -47,89 +64,43 @@ async function startServer() {
   app.post("/api/book", async (req, res) => {
     try {
       const { name, phone, email, serviceName, date, time } = req.body;
+      await (0, import_firestore.addDoc)((0, import_firestore.collection)(db, "programari"), {
+        name,
+        phone,
+        email: email || "",
+        serviceName,
+        date,
+        time,
+        dataCreare: (0, import_firestore.serverTimestamp)()
+      });
+      console.log("Programare salvat\u0103 \xEEn Firebase!");
+      res.json({ success: true, message: "Procesat cu succes." });
       try {
-        await (0, import_firestore.addDoc)((0, import_firestore.collection)(db, "programari"), {
-          name,
-          phone,
-          email: email || "",
-          serviceName,
-          date,
-          time,
-          dataCreare: (0, import_firestore.serverTimestamp)()
-        });
-        console.log("Programare salvat\u0103 \xEEn Firebase cu succes!");
-      } catch (dbErr) {
-        console.error("Eroare la salvarea \xEEn baza de date:", dbErr);
-      }
-      try {
-        const payloadAdmin = {
+        trimiteEmailJS({
           service_id: "service_ozdh5vo",
           template_id: "template_ttdpsfh",
           user_id: "9hW5rySbyy76L-RZr",
-          template_params: {
-            nume: name,
-            telefon: phone,
-            email: email || "Nu a l\u0103sat",
-            serviciu: serviceName,
-            data: date,
-            ora: time
-          }
-        };
-        const responseAdmin = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payloadAdmin)
+          template_params: { nume: name, telefon: phone, email: email || "Nu a l\u0103sat", serviciu: serviceName, data: date, ora: time }
         });
-        if (responseAdmin.ok) {
-          console.log("Email Admin trimis cu succes!");
-        } else {
-          const errText = await responseAdmin.text();
-          console.error("Eroare de la EmailJS (Admin):", errText);
-        }
-      } catch (e) {
-        console.error("Eroare re\u021Bea admin:", e);
-      }
-      if (email && email.includes("@")) {
-        try {
-          const payloadClient = {
+        if (email && email.includes("@")) {
+          trimiteEmailJS({
             service_id: "service_ozdh5vo",
             template_id: "template_faubiae",
             user_id: "9hW5rySbyy76L-RZr",
-            template_params: {
-              nume: name,
-              email,
-              serviciu: serviceName,
-              data: date,
-              ora: time
-            }
-          };
-          const responseClient = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payloadClient)
+            template_params: { nume: name, email, serviciu: serviceName, data: date, ora: time }
           });
-          if (responseClient.ok) {
-            console.log("Email Client trimis cu succes!");
-          } else {
-            const errText = await responseClient.text();
-            console.error("Eroare de la EmailJS (Client):", errText);
-          }
-        } catch (e) {
-          console.error("Eroare re\u021Bea client:", e);
         }
+      } catch (emailErr) {
+        console.error("Eroare execu\u021Bie email:", emailErr);
       }
-      res.json({ success: true, message: "Procesat cu succes." });
     } catch (error) {
       console.error("Eroare backend book API:", error);
-      if (!res.headersSent) {
-        res.status(500).json({ error: "Eroare intern\u0103 la procesare." });
-      }
+      if (!res.headersSent) res.status(500).json({ error: "Eroare intern\u0103." });
     }
   });
   app.post("/api/reviews", async (req, res) => {
     try {
-      const { author, rating, text } = req.body;
-      await (0, import_firestore.addDoc)((0, import_firestore.collection)(db, "recenzii"), { author, rating, text, dataCreare: (0, import_firestore.serverTimestamp)() });
+      await (0, import_firestore.addDoc)((0, import_firestore.collection)(db, "recenzii"), { ...req.body, dataCreare: (0, import_firestore.serverTimestamp)() });
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Eroare." });
@@ -151,7 +122,7 @@ async function startServer() {
       const response = await ai.models.generateContent({
         model: "gemini-3.6-flash",
         contents: (history ? history.map((h) => `${h.role}: ${h.content}`).join("\n") + "\n\n" : "") + message,
-        config: { systemInstruction: `E\u0219ti Mia, asistenta virtual\u0103...` }
+        config: { systemInstruction: `E\u0219ti Mia...` }
       });
       res.json({ reply: response.text });
     } catch (error) {
@@ -161,9 +132,7 @@ async function startServer() {
   app.use(import_express.default.static(import_path.default.join(process.cwd(), "public")));
   const distPath = import_path.default.join(process.cwd(), "dist");
   app.use(import_express.default.static(distPath));
-  app.get("*", (req, res) => {
-    res.sendFile(import_path.default.join(distPath, "index.html"));
-  });
+  app.get("*", (req, res) => res.sendFile(import_path.default.join(distPath, "index.html")));
   app.listen(PORT, "0.0.0.0", () => console.log(`Server rul\xE2nd pe portul ${PORT}`));
 }
 startServer();
