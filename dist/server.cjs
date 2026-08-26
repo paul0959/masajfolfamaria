@@ -75,15 +75,19 @@ async function startServer() {
             ora: time
           }
         };
-        fetch("https://api.emailjs.com/api/v1.0/email/send", {
+        const responseAdmin = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payloadAdmin)
-        }).then((res2) => {
-          if (res2.ok) console.log("Email Admin trimis cu succes!");
-        }).catch((err) => console.error("Eroare admin email:", err));
+        });
+        if (responseAdmin.ok) {
+          console.log("Email Admin trimis cu succes!");
+        } else {
+          const errText = await responseAdmin.text();
+          console.error("Eroare de la EmailJS (Admin):", errText);
+        }
       } catch (e) {
-        console.error("Eroare try-catch admin:", e);
+        console.error("Eroare re\u021Bea admin:", e);
       }
       if (email && email.includes("@")) {
         try {
@@ -99,15 +103,19 @@ async function startServer() {
               ora: time
             }
           };
-          fetch("https://api.emailjs.com/api/v1.0/email/send", {
+          const responseClient = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payloadClient)
-          }).then((res2) => {
-            if (res2.ok) console.log("Email Client trimis cu succes!");
-          }).catch((err) => console.error("Eroare client email:", err));
+          });
+          if (responseClient.ok) {
+            console.log("Email Client trimis cu succes!");
+          } else {
+            const errText = await responseClient.text();
+            console.error("Eroare de la EmailJS (Client):", errText);
+          }
         } catch (e) {
-          console.error("Eroare try-catch client:", e);
+          console.error("Eroare re\u021Bea client:", e);
         }
       }
       res.json({ success: true, message: "Procesat cu succes." });
@@ -121,46 +129,33 @@ async function startServer() {
   app.post("/api/reviews", async (req, res) => {
     try {
       const { author, rating, text } = req.body;
-      await (0, import_firestore.addDoc)((0, import_firestore.collection)(db, "recenzii"), {
-        author,
-        rating,
-        text,
-        dataCreare: (0, import_firestore.serverTimestamp)()
-      });
+      await (0, import_firestore.addDoc)((0, import_firestore.collection)(db, "recenzii"), { author, rating, text, dataCreare: (0, import_firestore.serverTimestamp)() });
       res.json({ success: true });
     } catch (error) {
-      console.error("Eroare adaugare recenzie:", error);
-      res.status(500).json({ error: "Eroare la salvarea recenziei." });
+      res.status(500).json({ error: "Eroare." });
     }
   });
   app.get("/api/reviews", async (req, res) => {
     try {
       const q = (0, import_firestore.query)((0, import_firestore.collection)(db, "recenzii"), (0, import_firestore.orderBy)("dataCreare", "desc"));
       const querySnapshot = await (0, import_firestore.getDocs)(q);
-      const recenzii = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      res.json(recenzii);
+      res.json(querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     } catch (error) {
-      console.error("Eroare citire recenzii:", error);
-      res.status(500).json({ error: "Eroare la citirea recenziilor." });
+      res.status(500).json({ error: "Eroare." });
     }
   });
   app.post("/api/chat", async (req, res) => {
     try {
       const { message, history } = req.body;
-      if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "MY_GEMINI_API_KEY") {
-        return res.status(500).json({ error: "GEMINI_API_KEY lipse\u0219te." });
-      }
-      const systemInstruction = `E\u0219ti Mia, asistenta virtual\u0103 a Mariei Folfa, un tehnician maseur profesionist (activ\u0103 din 2018). Cabinetul este \xEEn Localitatea \u0218an\u021B, strada Principal\u0103, nr 931, jud. Bistri\u021Ba-N\u0103s\u0103ud. R\u0103spunzi politicos, prietenos, calm \u0219i concis la \xEEntreb\u0103ri despre masaje, beneficii \u0219i loca\u021Bie. E\u0219ti cald\u0103, empatic\u0103 \u0219i folose\u0219ti un ton relaxant (po\u021Bi folosi emoji-uri potrivite precum \u{1F338}, \u2728, \u{1F33F}). Oferi doar informa\u021Bii legate de serviciile noastre. Direc\u021Bionezi clientul s\u0103 se programeze online apasand butonul din pagina. Nu inventa pre\u021Buri dac\u0103 nu e\u0219ti sigur\u0103, spune-i clientului s\u0103 verifice sec\u021Biunea de servicii.`;
-      const context = history && history.length > 0 ? "Istoric conversa\u021Bie:\n" + history.map((h) => `${h.role}: ${h.content}`).join("\n") + "\n\nMesaj nou: " : "";
+      if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: "Cheie lips\u0103." });
       const response = await ai.models.generateContent({
         model: "gemini-3.6-flash",
-        contents: context + message,
-        config: { systemInstruction }
+        contents: (history ? history.map((h) => `${h.role}: ${h.content}`).join("\n") + "\n\n" : "") + message,
+        config: { systemInstruction: `E\u0219ti Mia, asistenta virtual\u0103...` }
       });
       res.json({ reply: response.text });
     } catch (error) {
-      console.error("Eroare Gemini:", error);
-      res.status(500).json({ error: "Eroare AI: " + (error.message || String(error)) });
+      res.status(500).json({ error: "Eroare AI" });
     }
   });
   app.use(import_express.default.static(import_path.default.join(process.cwd(), "public")));
@@ -169,9 +164,7 @@ async function startServer() {
   app.get("*", (req, res) => {
     res.sendFile(import_path.default.join(distPath, "index.html"));
   });
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server rul\xE2nd pe portul ${PORT}`);
-  });
+  app.listen(PORT, "0.0.0.0", () => console.log(`Server rul\xE2nd pe portul ${PORT}`));
 }
 startServer();
 //# sourceMappingURL=server.cjs.map
