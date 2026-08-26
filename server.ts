@@ -55,10 +55,11 @@ async function startServer() {
 
       // TRIMITERE EMAIL
       try {
-        const transporter = nodemailer.createTransport({
+       const transporter = nodemailer.createTransport({
           host: 'smtp.gmail.com',
-          port: 465,
-          secure: true,
+          port: 587, // Schimbăm portul de la 465 la 587
+          secure: false, // Obligatoriu "false" pentru portul 587
+          requireTLS: true, // Forțăm securizarea pe ușa alternativă
           auth: {
             user: 'terapeutmaria@gmail.com',
             pass: process.env.EMAIL_APP_PASSWORD || 'iledsyhpaoyfunoj'
