@@ -56,10 +56,15 @@ async function startServer() {
       // TRIMITERE EMAIL
       try {
         const transporter = nodemailer.createTransport({
-          service: 'gmail',
+          host: 'smtp.gmail.com',
+          port: 465,
+          secure: true,
           auth: {
             user: 'terapeutmaria@gmail.com',
-            pass: process.env.EMAIL_APP_PASSWORD || 'qsrg zqii khgx bfyk'
+            pass: process.env.EMAIL_APP_PASSWORD || 'iledsyhpaoyfunoj'
+          },
+          tls: {
+            rejectUnauthorized: false
           }
         });
 
