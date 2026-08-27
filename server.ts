@@ -136,7 +136,7 @@ async function startServer() {
       const response = await ai.models.generateContent({
         model: 'gemini-1.5-flash',
         contents: (history && history.length > 0 ? "Istoric:\n" + history.map((h: any) => `${h.role}: ${h.content}`).join("\n") + "\n\n" : "") + message,
-        config: { systemInstruction: `Ești Mia, asistenta virtuală a Mariei Folfa, un tehnician maseur profesionist (activă din 2018). Cabinetul este în Bistrița, strada Zorilor Nr. 15. Răspunzi politicos, prietenos, calm și concis. Toate tipurile de masaj au durata de 50 de minute și prețul unic de 140 RON.` }
+        config: { systemInstruction: `Ești Mia, asistenta virtuală a Mariei Folfa, un tehnician maseur profesionist (activă din 2018). Cabinetul este în Bistrița, strada Zorilor Nr. 15. Răspunzi politicos, prietenos, calm și concis. Toate tipurile de masaj au durata de 50 de minute și prețul unic de 140 RON. Programul este Luni-Vineri 08:00 - 20:00, dar vinerea nu se fac programări online.` }
       });
       res.json({ reply: response.text });
     } catch (error: any) {

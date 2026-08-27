@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Calendar as CalendarIcon, Clock, CheckCircle, ChevronRight } from 'lucide-react';
+import { X, Calendar as CalendarIcon, Clock, CheckCircle, ChevronRight, AlertCircle } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { services } from '../types';
@@ -31,6 +31,15 @@ export default function BookingModal({ isOpen, onClose, preselectedServiceId }: 
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Verifică automat dacă prima zi selectată cade în weekend și o sare
+  useEffect(() => {
+    let initialDate = addDays(new Date(), 1);
+    while (initialDate.getDay() === 0 || initialDate.getDay() === 6) {
+      initialDate = addDays(initialDate, 1);
+    }
+    setSelectedDate(initialDate);
+  }, [isOpen]);
 
   useEffect(() => {
     if (preselectedServiceId) {
@@ -102,7 +111,6 @@ export default function BookingModal({ isOpen, onClose, preselectedServiceId }: 
       const serviceNameStr = service?.name || selectedService;
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
       
-      // 1. Salvare în Firebase via Server
       const response = await fetch('/api/book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -117,17 +125,11 @@ export default function BookingModal({ isOpen, onClose, preselectedServiceId }: 
       });
 
       if (response.ok) {
-         // 2. REDIRECȚIONARE WHATSAPP CU ENCODARE CORECTĂ
          const adminPhone = "40750294688"; 
          const mesajBrut = `Bună ziua! Vă contactez pentru a solicita o programare prin intermediul site-ului. Detaliile sunt următoarele:\n\n👤 *Nume:* ${formData.name}\n📞 *Telefon:* ${formData.phone}\n💆‍♀️ *Serviciu:* ${serviceNameStr}\n📅 *Data:* ${dateStr}\n⏰ *Ora:* ${selectedTime}\n\nVă rog să îmi confirmați disponibilitatea. Vă mulțumesc!`;
          
-         // Codificăm textul pentru a proteja emoticoanele și spațiile
          const whatsappUrl = `https://wa.me/${adminPhone}?text=${encodeURIComponent(mesajBrut)}`;
-         
-         // Deschide WhatsApp
          window.open(whatsappUrl, '_blank');
-         
-         // Mergem la pasul final
          setStep(4);
       } else {
          alert("Eroare la salvare. Te rugăm să încerci din nou.");
@@ -151,7 +153,6 @@ export default function BookingModal({ isOpen, onClose, preselectedServiceId }: 
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         className="relative w-full max-w-5xl bg-white shadow-2xl flex flex-col md:flex-row h-[600px] max-h-[85vh] overflow-hidden rounded-xl"
       >
-        {/* Panou Stânga */}
         <div className="hidden md:flex w-2/5 bg-sage-900 text-white flex-col relative">
           <img src="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&q=80&w=800" alt="Spa" className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-overlay" />
           <div className="relative z-10 p-8 flex flex-col h-full">
@@ -173,14 +174,12 @@ export default function BookingModal({ isOpen, onClose, preselectedServiceId }: 
           </div>
         </div>
 
-        {/* Panou Dreapta */}
         <div className="w-full md:w-3/5 flex flex-col h-full bg-cream-50 relative">
           <button onClick={onClose} className="absolute top-4 right-4 text-sage-400 hover:text-sage-900 transition-colors z-20 bg-cream-50 rounded-full p-1"><X size={24} /></button>
           
           <div className="flex-1 p-6 sm:p-10 flex flex-col justify-center h-full overflow-hidden">
             <AnimatePresence mode="wait">
               
-              {/* PASUL 1 */}
               {step === 1 && (
                 <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex flex-col h-full">
                   <h4 className="text-2xl font-serif text-sage-900 mb-6">Ce tip de terapie dorești?</h4>
@@ -200,15 +199,16 @@ export default function BookingModal({ isOpen, onClose, preselectedServiceId }: 
                 </motion.div>
               )}
 
-              {/* PASUL 2 */}
               {step === 2 && (
                 <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex flex-col h-full">
                   <h4 className="text-2xl font-serif text-sage-900 mb-6">Când ești disponibil/ă?</h4>
                   <div className="mb-6">
                     <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
-                      {[0, 1, 2, 3, 4, 5, 6].map(offset => {
+                      {Array.from({ length: 14 }).map((_, offset) => {
                         const d = addDays(new Date(), offset);
-                        if (d.getDay() === 0) return null;
+                        // Ascundem sâmbăta și duminica
+                        if (d.getDay() === 0 || d.getDay() === 6) return null;
+                        
                         const isSelected = format(selectedDate, 'yyyy-MM-dd') === format(d, 'yyyy-MM-dd');
                         return (
                           <button key={offset} onClick={() => setSelectedDate(d)} className={`flex-shrink-0 w-[4.5rem] py-3 rounded-lg border text-center transition-all ${isSelected ? 'border-sage-900 bg-sage-900 text-white' : 'border-sage-200 bg-white'}`}>
@@ -219,6 +219,14 @@ export default function BookingModal({ isOpen, onClose, preselectedServiceId }: 
                       })}
                     </div>
                   </div>
+                  
+                  {selectedDate.getDay() === 5 && (
+                    <div className="bg-red-50 border border-red-100 rounded-lg p-3 mb-4 flex items-center gap-3 text-red-600">
+                      <AlertCircle size={18} />
+                      <p className="text-sm font-medium">Vinerea nu se preiau programări online.</p>
+                    </div>
+                  )}
+
                   <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                     {isLoadingSlots ? (
                       <div className="h-32 flex items-center justify-center text-sage-500 text-sm animate-pulse">Se verifică disponibilitatea...</div>
@@ -228,7 +236,10 @@ export default function BookingModal({ isOpen, onClose, preselectedServiceId }: 
                           const [hours, minutes] = slot.time.split(':').map(Number);
                           const slotDateObj = new Date(selectedDate);
                           slotDateObj.setHours(hours, minutes, 0, 0);
-                          const isActuallyAvailable = slot.available && (slotDateObj >= new Date());
+                          
+                          // Dacă e vineri, blocăm automat TOATE orele.
+                          const isFriday = selectedDate.getDay() === 5;
+                          const isActuallyAvailable = slot.available && (slotDateObj >= new Date()) && !isFriday;
 
                           return (
                             <button key={slot.time} disabled={!isActuallyAvailable} onClick={() => setSelectedTime(slot.time)} className={`py-3 rounded-lg border text-sm font-medium transition-all ${!isActuallyAvailable ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-60' : selectedTime === slot.time ? 'border-gold-400 bg-gold-400 text-white' : 'border-sage-200 bg-white'}`}>
@@ -246,7 +257,6 @@ export default function BookingModal({ isOpen, onClose, preselectedServiceId }: 
                 </motion.div>
               )}
 
-              {/* PASUL 3 */}
               {step === 3 && (
                 <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex flex-col h-full">
                   <h4 className="text-2xl font-serif text-sage-900 mb-6">Detaliile tale</h4>
@@ -278,7 +288,6 @@ export default function BookingModal({ isOpen, onClose, preselectedServiceId }: 
                 </motion.div>
               )}
 
-              {/* PASUL 4 */}
               {step === 4 && (
                 <motion.div key="step4" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col h-full items-center justify-center text-center">
                   <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mb-6 ring-8 ring-green-50/50">

@@ -56,8 +56,8 @@ export default function Contact() {
                   <Clock className="text-sage-600" size={24} />
                 </div>
                 <div>
-                  <h4 className="text-lg font-medium text-sage-900 mb-1">Program</h4>
-                  <p className="text-sage-600">Luni - Vineri: 09:00 - 18:00<br/>Sâmbătă: 09:00 - 14:00</p>
+                 <h4 className="text-lg font-medium text-sage-900 mb-1">Program</h4>
+<p className="text-sage-600">Luni - Vineri: 08:00 - 20:00<br/>Sâmbătă - Duminică: Închis</p>
                 </div>
               </div>
             </div>

@@ -14,7 +14,7 @@ export const services: Service[] = [
     duration: "50 min",
     price: "140 RON",
     benefits: "Ameliorează durerile musculare și articulare, corectează postura.",
-    image: "https://images.unsplash.com/photo-1600334129128-685c4582f6b3?auto=format&fit=crop&q=80&w=600"
+    image: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&q=80&w=600"
   },
   {
     id: "relaxare",
@@ -22,7 +22,7 @@ export const services: Service[] = [
     duration: "50 min",
     price: "140 RON",
     benefits: "Reduce stresul, îmbunătățește circulația și induce o stare profundă de bine.",
-    image: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&q=80&w=600"
+    image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&q=80&w=600"
   },
   {
     id: "drenaj",
@@ -30,7 +30,7 @@ export const services: Service[] = [
     duration: "50 min",
     price: "140 RON",
     benefits: "Elimină toxinele și reduce retenția de apă din organism.",
-    image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&q=80&w=600"
+    image: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&q=80&w=600"
   },
   {
     id: "ventuze",

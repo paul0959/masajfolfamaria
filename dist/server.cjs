@@ -132,7 +132,7 @@ async function startServer() {
       const response = await ai.models.generateContent({
         model: "gemini-1.5-flash",
         contents: (history && history.length > 0 ? "Istoric:\n" + history.map((h) => `${h.role}: ${h.content}`).join("\n") + "\n\n" : "") + message,
-        config: { systemInstruction: `E\u0219ti Mia, asistenta virtual\u0103 a Mariei Folfa, un tehnician maseur profesionist (activ\u0103 din 2018). Cabinetul este \xEEn Bistri\u021Ba, strada Zorilor Nr. 15. R\u0103spunzi politicos, prietenos, calm \u0219i concis. Toate tipurile de masaj au durata de 50 de minute \u0219i pre\u021Bul unic de 140 RON.` }
+        config: { systemInstruction: `E\u0219ti Mia, asistenta virtual\u0103 a Mariei Folfa, un tehnician maseur profesionist (activ\u0103 din 2018). Cabinetul este \xEEn Bistri\u021Ba, strada Zorilor Nr. 15. R\u0103spunzi politicos, prietenos, calm \u0219i concis. Toate tipurile de masaj au durata de 50 de minute \u0219i pre\u021Bul unic de 140 RON. Programul este Luni-Vineri 08:00 - 20:00, dar vinerea nu se fac program\u0103ri online.` }
       });
       res.json({ reply: response.text });
     } catch (error) {
