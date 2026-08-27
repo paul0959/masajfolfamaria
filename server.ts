@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
+import https from 'https'; // Modulul nativ care rezolvă problema pe Render
 
 // --- IMPORTĂM FIREBASE ---
 import { initializeApp } from 'firebase/app';
@@ -22,6 +23,24 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || 'MISSING_KEY' });
+
+// Funcție nativă Node.js 100% sigură pentru Render
+function trimiteEmailJS(payload: any) {
+  const data = JSON.stringify(payload);
+  const req = https.request('https://api.emailjs.com/api/v1.0/email/send', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(data)
+    }
+  }, (res) => {
+    if (res.statusCode === 200) console.log("Email expediat cu succes prin HTTPS nativ!");
+    else console.error("Eroare EmailJS:", res.statusCode);
+  });
+  req.on('error', (e) => console.error("Eroare rețea EmailJS:", e));
+  req.write(data);
+  req.end();
+}
 
 async function startServer() {
   const app = express();
@@ -44,39 +63,27 @@ async function startServer() {
          time,
          dataCreare: serverTimestamp()
       });
-      console.log("Programare salvată în Firebase cu succes!");
+      console.log("Programare salvată în Firebase!");
 
-      // PASUL B: Răspuns instant către site (Clientul nu mai așteaptă)
+      // PASUL B: Răspuns instant către site
       res.json({ success: true, message: 'Programare salvată cu succes.' });
 
-      // PASUL C: Trimitere Emailuri în fundal (prin EmailJS HTTP)
+      // PASUL C: Trimitere Emailuri în fundal
       try {
-        const payloadAdmin = {
+        trimiteEmailJS({
           service_id: 'service_ozdh5vo',
           template_id: 'template_ttdpsfh',
           user_id: '9hW5rySbyy76L-RZr',
           template_params: { nume: name, telefon: phone, email: email || 'Nu a lăsat', serviciu: serviceName, data: date, ora: time }
-        };
-
-        fetch('https://api.emailjs.com/api/v1.0/email/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payloadAdmin)
-        }).then(r => { if(r.ok) console.log("Email Admin trimis!"); }).catch(e => console.error(e));
+        });
 
         if (email && email.includes('@')) {
-          const payloadClient = {
+          trimiteEmailJS({
             service_id: 'service_ozdh5vo',
             template_id: 'template_faubiae',
             user_id: '9hW5rySbyy76L-RZr',
             template_params: { nume: name, email: email, serviciu: serviceName, data: date, ora: time }
-          };
-
-          fetch('https://api.emailjs.com/api/v1.0/email/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payloadClient)
-          }).then(r => { if(r.ok) console.log("Email Client trimis!"); }).catch(e => console.error(e));
+          });
         }
       } catch (emailErr) {
         console.error("Eroare la procesarea emailurilor:", emailErr);
@@ -88,7 +95,7 @@ async function startServer() {
     }
   });
 
-  // 1.5 API Endpoint pentru CITIRE PROGRAMĂRI
+  // 1.5 API Endpoint pentru CITIRE PROGRAMĂRI (Pentru Admin)
   app.get(['/api/book', '/api/bookings', '/api/programari'], async (req, res) => {
     try {
       const q = query(collection(db, 'programari'), orderBy('dataCreare', 'desc'));

@@ -26,6 +26,7 @@ var import_express = __toESM(require("express"), 1);
 var import_path = __toESM(require("path"), 1);
 var import_genai = require("@google/genai");
 var import_dotenv = __toESM(require("dotenv"), 1);
+var import_https = __toESM(require("https"), 1);
 var import_app = require("firebase/app");
 var import_firestore = require("firebase/firestore");
 import_dotenv.default.config();
@@ -40,6 +41,22 @@ var firebaseConfig = {
 var firebaseApp = (0, import_app.initializeApp)(firebaseConfig);
 var db = (0, import_firestore.getFirestore)(firebaseApp);
 var ai = new import_genai.GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "MISSING_KEY" });
+function trimiteEmailJS(payload) {
+  const data = JSON.stringify(payload);
+  const req = import_https.default.request("https://api.emailjs.com/api/v1.0/email/send", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Content-Length": Buffer.byteLength(data)
+    }
+  }, (res) => {
+    if (res.statusCode === 200) console.log("Email expediat cu succes prin HTTPS nativ!");
+    else console.error("Eroare EmailJS:", res.statusCode);
+  });
+  req.on("error", (e) => console.error("Eroare re\u021Bea EmailJS:", e));
+  req.write(data);
+  req.end();
+}
 async function startServer() {
   const app = (0, import_express.default)();
   const PORT = process.env.PORT || 3e3;
@@ -56,36 +73,22 @@ async function startServer() {
         time,
         dataCreare: (0, import_firestore.serverTimestamp)()
       });
-      console.log("Programare salvat\u0103 \xEEn Firebase cu succes!");
+      console.log("Programare salvat\u0103 \xEEn Firebase!");
       res.json({ success: true, message: "Programare salvat\u0103 cu succes." });
       try {
-        const payloadAdmin = {
+        trimiteEmailJS({
           service_id: "service_ozdh5vo",
           template_id: "template_ttdpsfh",
           user_id: "9hW5rySbyy76L-RZr",
           template_params: { nume: name, telefon: phone, email: email || "Nu a l\u0103sat", serviciu: serviceName, data: date, ora: time }
-        };
-        fetch("https://api.emailjs.com/api/v1.0/email/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payloadAdmin)
-        }).then((r) => {
-          if (r.ok) console.log("Email Admin trimis!");
-        }).catch((e) => console.error(e));
+        });
         if (email && email.includes("@")) {
-          const payloadClient = {
+          trimiteEmailJS({
             service_id: "service_ozdh5vo",
             template_id: "template_faubiae",
             user_id: "9hW5rySbyy76L-RZr",
             template_params: { nume: name, email, serviciu: serviceName, data: date, ora: time }
-          };
-          fetch("https://api.emailjs.com/api/v1.0/email/send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payloadClient)
-          }).then((r) => {
-            if (r.ok) console.log("Email Client trimis!");
-          }).catch((e) => console.error(e));
+          });
         }
       } catch (emailErr) {
         console.error("Eroare la procesarea emailurilor:", emailErr);
