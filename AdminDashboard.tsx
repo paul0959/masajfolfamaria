@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { db } from '../lib/firebase';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { Appointment, services } from '../types';
-import { LogOut, Users, DollarSign, MessageSquare, Star, Trash2, Save, TrendingUp, Calendar as CalIcon, BarChart3, Activity } from 'lucide-react';
-import { format, parseISO, isSameDay, isSameWeek, isSameMonth } from 'date-fns';
+import { LogOut, Users, DollarSign, MessageSquare, Star, Trash2, Save, TrendingUp, Calendar, BarChart, Activity } from 'lucide-react';
+import { format, isSameDay, isSameWeek, isSameMonth } from 'date-fns';
 import { ro } from 'date-fns/locale';
 
-// Logica automată de stabilire a statusului bazată STRICT pe timp
+// Logica de status ultra-securizată
 const getStatusDisplay = (app: Appointment, currentTime: Date, editedStatus?: string) => {
   const currentStatus = editedStatus || app.status || 'auto';
   
@@ -14,17 +14,18 @@ const getStatusDisplay = (app: Appointment, currentTime: Date, editedStatus?: st
     return { label: 'Anulată', color: 'bg-red-100 text-red-800 border-red-200' };
   }
 
-  if (!app.date || !app.time) return { label: 'Dată invalidă', color: 'bg-gray-100 text-gray-800 border-gray-200' };
+  // Prevenim crash-urile dacă lipsesc datele
+  if (!app.date || !app.time || !app.date.includes('-') || !app.time.includes(':')) {
+    return { label: 'Nesetată', color: 'bg-gray-100 text-gray-800 border-gray-200' };
+  }
 
   try {
     const [year, month, day] = app.date.split('-').map(Number);
     const [hours, minutes] = app.time.split(':').map(Number);
     const appointmentTime = new Date(year, month - 1, day, hours, minutes);
     
-    // Diferența în minute dintre acum și ora programării
     const diffMinutes = (currentTime.getTime() - appointmentTime.getTime()) / (1000 * 60);
 
-    // Presupunem o durată medie de 90 de minute per sesiune
     if (diffMinutes < 0) {
       return { label: 'Urmează', color: 'bg-blue-100 text-blue-800 border-blue-200' };
     } else if (diffMinutes >= 0 && diffMinutes <= 90) {
@@ -33,7 +34,7 @@ const getStatusDisplay = (app: Appointment, currentTime: Date, editedStatus?: st
       return { label: 'Terminată', color: 'bg-gray-100 text-gray-800 border-gray-200' };
     }
   } catch (e) {
-    return { label: 'Eroare calcul', color: 'bg-gray-100' };
+    return { label: 'Necunoscut', color: 'bg-gray-100 text-gray-800 border-gray-200' };
   }
 };
 
@@ -44,7 +45,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [activeTab, setActiveTab] = useState<'appointments' | 'financial' | 'chats' | 'reviews'>('appointments');
   const [editedStatuses, setEditedStatuses] = useState<Record<string, string>>({});
   
-  // Ceas intern pentru reactualizarea în timp real a statusurilor (la fiecare minut)
+  // Ceas intern pentru actualizare live
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -81,50 +82,55 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       await updateDoc(doc(db, 'programari', id), { status: newStatus });
       setEditedStatuses(prev => { const next = { ...prev }; delete next[id]; return next; });
     } catch (e) { 
-      console.error(e); 
       alert('Eroare la actualizarea statusului.'); 
     }
   };
 
   const handleDelete = async (id: string) => {
     if (confirm('Sigur dorești să ștergi definitiv această programare?')) {
-      try { await deleteDoc(doc(db, 'programari', id)); } catch (e) { console.error(e); }
+      try { await deleteDoc(doc(db, 'programari', id)); } catch (e) {}
     }
   };
 
   const handleDeleteReview = async (id: string) => {
     if (confirm('Sigur dorești să ștergi această recenzie?')) {
-      try { await deleteDoc(doc(db, 'recenzii', id)); } catch (e) { console.error(e); }
+      try { await deleteDoc(doc(db, 'recenzii', id)); } catch (e) {}
     }
   };
 
   // =====================
-  // CALCUL FINANCIAR AVANSAT
+  // MATEMATICĂ FINANCIARĂ BLINDATĂ
   // =====================
   const validAppointments = appointments.filter(a => a.status !== 'cancelled' && editedStatuses[a.id] !== 'cancelled');
   
   const getAppRevenue = (app: Appointment) => {
-    const service = services?.find(s => s.id === app.serviceId || s.name === app.serviceName);
-    return service ? parseInt(service.price.replace(/\D/g, '')) || 0 : 0;
+    try {
+      const service = services?.find(s => s.id === app.serviceId || s.name === app.serviceName);
+      if (!service || !service.price) return 0;
+      return parseInt(String(service.price).replace(/\D/g, '')) || 0;
+    } catch (e) {
+      return 0;
+    }
   };
 
-  // Statistici Rapide (Astăzi, Săptămână, Lună, Total)
   let revToday = 0, revWeek = 0, revMonth = 0, revTotal = 0;
   
   validAppointments.forEach(app => {
     const rev = getAppRevenue(app);
     revTotal += rev;
-    if (!app.date) return;
+    
+    if (!app.date || !app.date.includes('-')) return;
     
     try {
-      const appDate = new Date(app.date);
+      const [year, month, day] = app.date.split('-').map(Number);
+      const appDate = new Date(year, month - 1, day);
+      
       if (isSameDay(appDate, currentTime)) revToday += rev;
       if (isSameWeek(appDate, currentTime, { weekStartsOn: 1 })) revWeek += rev;
       if (isSameMonth(appDate, currentTime)) revMonth += rev;
     } catch(e) {}
   });
 
-  // Generare date pentru Graficul Ultimelor 7 Zile
   const last7Days = Array.from({length: 7}).map((_, i) => {
     const d = new Date(currentTime);
     d.setDate(d.getDate() - i);
@@ -132,12 +138,16 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   }).reverse();
 
   const chartData = last7Days.map(dateStr => {
-    const dailyApps = validAppointments.filter(a => a.date === dateStr);
-    const revenue = dailyApps.reduce((sum, app) => sum + getAppRevenue(app), 0);
-    return { date: dateStr, revenue };
+    try {
+      const dailyApps = validAppointments.filter(a => a.date === dateStr);
+      const revenue = dailyApps.reduce((sum, app) => sum + getAppRevenue(app), 0);
+      return { date: dateStr, revenue };
+    } catch (e) {
+      return { date: dateStr, revenue: 0 };
+    }
   });
 
-  const maxChartRev = Math.max(...chartData.map(d => d.revenue), 1); // Previne împărțirea la 0
+  const maxChartRev = Math.max(...chartData.map(d => d.revenue), 1);
 
   return (
     <div className="min-h-screen bg-cream-50 font-sans">
@@ -152,14 +162,13 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       </div>
 
       <div className="flex flex-col md:flex-row h-[calc(100vh-68px)]">
-        {/* Sidebar Navigare */}
         <div className="w-full md:w-64 bg-white border-r border-sage-200 p-4 shadow-sm z-0">
           <nav className="space-y-2">
             <button onClick={() => setActiveTab('appointments')} className={`w-full flex items-center gap-3 px-4 py-3 text-sm tracking-wider uppercase transition-colors rounded ${activeTab === 'appointments' ? 'bg-sage-100 text-sage-900 font-bold' : 'text-sage-600 hover:bg-cream-100'}`}>
               <Users size={18} /> Programări
             </button>
             <button onClick={() => setActiveTab('financial')} className={`w-full flex items-center gap-3 px-4 py-3 text-sm tracking-wider uppercase transition-colors rounded ${activeTab === 'financial' ? 'bg-sage-100 text-sage-900 font-bold' : 'text-sage-600 hover:bg-cream-100'}`}>
-              <BarChart3 size={18} /> Statistici & Finanțe
+              <BarChart size={18} /> Statistici & Finanțe
             </button>
             <button onClick={() => setActiveTab('chats')} className={`w-full flex items-center gap-3 px-4 py-3 text-sm tracking-wider uppercase transition-colors rounded ${activeTab === 'chats' ? 'bg-sage-100 text-sage-900 font-bold' : 'text-sage-600 hover:bg-cream-100'}`}>
               <MessageSquare size={18} /> Chat Logs
@@ -170,7 +179,6 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           </nav>
         </div>
 
-        {/* Conținut Principal */}
         <div className="flex-1 p-6 md:p-8 overflow-y-auto bg-cream-50 custom-scrollbar">
           
           {/* TAB: PROGRAMĂRI */}
@@ -254,12 +262,11 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             <div className="space-y-6">
               <h2 className="text-2xl font-serif text-sage-900 mb-6">Performanță Financiară</h2>
               
-              {/* Carduri Statistici */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white p-5 rounded-xl shadow-sm border border-sage-200 border-l-4 border-l-sage-400">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="text-sage-500 text-xs font-bold uppercase tracking-wider">Astăzi</h3>
-                    <CalIcon size={16} className="text-sage-400"/>
+                    <Calendar size={16} className="text-sage-400"/>
                   </div>
                   <p className="text-2xl font-serif text-sage-900">{revToday} <span className="text-sm font-sans text-sage-500">RON</span></p>
                 </div>
@@ -275,7 +282,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 <div className="bg-white p-5 rounded-xl shadow-sm border border-sage-200 border-l-4 border-l-sage-700">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="text-sage-500 text-xs font-bold uppercase tracking-wider">Luna Curentă</h3>
-                    <CalendarIcon size={16} className="text-sage-700"/>
+                    <Calendar size={16} className="text-sage-700"/>
                   </div>
                   <p className="text-2xl font-serif text-sage-900">{revMonth} <span className="text-sm font-sans text-sage-500">RON</span></p>
                 </div>
@@ -289,31 +296,27 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 </div>
               </div>
 
-              {/* Grafic Evoluție Ultimele 7 Zile */}
               <div className="bg-white p-6 rounded-xl shadow-sm border border-sage-200 mt-8">
                 <h3 className="text-lg font-serif text-sage-900 mb-6 flex items-center gap-2">
-                  <BarChart3 className="text-gold-500" />
+                  <BarChart className="text-gold-500" />
                   Evoluție Venituri (Ultimele 7 zile)
                 </h3>
                 <div className="h-64 flex items-end gap-2 sm:gap-6 pt-10 border-b border-sage-200 pb-2">
                   {chartData.map((d, i) => {
-                    const heightPercent = Math.max((d.revenue / maxChartRev) * 100, 2); // minim 2% pt a se vedea bara
+                    const heightPercent = Math.max((d.revenue / maxChartRev) * 100, 2);
                     const isToday = i === 6;
                     
                     return (
                       <div key={i} className="flex-1 flex flex-col items-center justify-end h-full group relative">
-                        {/* Tooltip pe hover */}
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 bg-sage-900 text-white text-xs py-1 px-2 rounded whitespace-nowrap pointer-events-none z-10">
                           {d.revenue} RON
                         </div>
-                        {/* Bara grafic */}
                         <div className="w-full max-w-[40px] bg-sage-100 rounded-t-md relative flex items-end justify-center h-full">
                           <div 
                             className={`w-full rounded-t-md transition-all duration-1000 ease-out ${isToday ? 'bg-gold-400' : 'bg-sage-400 group-hover:bg-sage-500'}`} 
                             style={{ height: `${heightPercent}%` }}
                           ></div>
                         </div>
-                        {/* Data sub bară */}
                         <span className={`text-[10px] sm:text-xs font-medium mt-3 whitespace-nowrap ${isToday ? 'text-gold-600 font-bold' : 'text-sage-500'}`}>
                           {format(new Date(d.date), 'dd MMM', { locale: ro })}
                         </span>
