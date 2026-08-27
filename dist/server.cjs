@@ -58,34 +58,58 @@ async function startServer() {
       });
       console.log("Programare salvat\u0103 \xEEn Firebase cu succes!");
       res.json({ success: true, message: "Programare salvat\u0103 cu succes." });
+      try {
+        const payloadAdmin = {
+          service_id: "service_ozdh5vo",
+          template_id: "template_ttdpsfh",
+          user_id: "9hW5rySbyy76L-RZr",
+          template_params: { nume: name, telefon: phone, email: email || "Nu a l\u0103sat", serviciu: serviceName, data: date, ora: time }
+        };
+        fetch("https://api.emailjs.com/api/v1.0/email/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payloadAdmin)
+        }).then((r) => {
+          if (r.ok) console.log("Email Admin trimis!");
+        }).catch((e) => console.error(e));
+        if (email && email.includes("@")) {
+          const payloadClient = {
+            service_id: "service_ozdh5vo",
+            template_id: "template_faubiae",
+            user_id: "9hW5rySbyy76L-RZr",
+            template_params: { nume: name, email, serviciu: serviceName, data: date, ora: time }
+          };
+          fetch("https://api.emailjs.com/api/v1.0/email/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payloadClient)
+          }).then((r) => {
+            if (r.ok) console.log("Email Client trimis!");
+          }).catch((e) => console.error(e));
+        }
+      } catch (emailErr) {
+        console.error("Eroare la procesarea emailurilor:", emailErr);
+      }
     } catch (error) {
-      console.error("Eroare la salvarea \xEEn baza de date:", error);
-      res.status(500).json({ error: "Eroare la salvarea program\u0103rii." });
+      console.error("Eroare backend la programare:", error);
+      if (!res.headersSent) res.status(500).json({ error: "Eroare la salvarea program\u0103rii." });
     }
   });
   app.get(["/api/book", "/api/bookings", "/api/programari"], async (req, res) => {
     try {
       const q = (0, import_firestore.query)((0, import_firestore.collection)(db, "programari"), (0, import_firestore.orderBy)("dataCreare", "desc"));
       const querySnapshot = await (0, import_firestore.getDocs)(q);
-      const programari = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      res.json(programari);
+      res.json(querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     } catch (error) {
-      console.error("Eroare la citirea program\u0103rilor:", error);
-      res.status(500).json({ error: "Eroare la citirea program\u0103rilor din Firebase." });
+      res.status(500).json({ error: "Eroare la citirea program\u0103rilor." });
     }
   });
   app.post("/api/reviews", async (req, res) => {
     try {
       const { author, rating, text } = req.body;
-      await (0, import_firestore.addDoc)((0, import_firestore.collection)(db, "recenzii"), {
-        author,
-        rating,
-        text,
-        dataCreare: (0, import_firestore.serverTimestamp)()
-      });
+      await (0, import_firestore.addDoc)((0, import_firestore.collection)(db, "recenzii"), { author, rating, text, dataCreare: (0, import_firestore.serverTimestamp)() });
       res.json({ success: true });
     } catch (error) {
-      console.error("Eroare adaugare recenzie:", error);
       res.status(500).json({ error: "Eroare la salvarea recenziei." });
     }
   });
@@ -93,29 +117,22 @@ async function startServer() {
     try {
       const q = (0, import_firestore.query)((0, import_firestore.collection)(db, "recenzii"), (0, import_firestore.orderBy)("dataCreare", "desc"));
       const querySnapshot = await (0, import_firestore.getDocs)(q);
-      const recenzii = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      res.json(recenzii);
+      res.json(querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     } catch (error) {
-      console.error("Eroare citire recenzii:", error);
       res.status(500).json({ error: "Eroare la citirea recenziilor." });
     }
   });
   app.post("/api/chat", async (req, res) => {
     try {
       const { message, history } = req.body;
-      if (!process.env.GEMINI_API_KEY) {
-        return res.status(500).json({ error: "GEMINI_API_KEY lipse\u0219te." });
-      }
-      const systemInstruction = `E\u0219ti Mia, asistenta virtual\u0103 a Mariei Folfa, un tehnician maseur profesionist (activ\u0103 din 2018). Cabinetul este \xEEn Localitatea \u0218an\u021B, strada Principal\u0103, nr 931, jud. Bistri\u021Ba-N\u0103s\u0103ud. R\u0103spunzi politicos, prietenos, calm \u0219i concis la \xEEntreb\u0103ri despre masaje, beneficii \u0219i loca\u021Bie.`;
-      const context = history && history.length > 0 ? "Istoric conversa\u021Bie:\n" + history.map((h) => `${h.role}: ${h.content}`).join("\n") + "\n\nMesaj nou: " : "";
+      if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: "GEMINI_API_KEY lipse\u0219te." });
       const response = await ai.models.generateContent({
         model: "gemini-3.6-flash",
-        contents: context + message,
-        config: { systemInstruction }
+        contents: (history && history.length > 0 ? "Istoric:\n" + history.map((h) => `${h.role}: ${h.content}`).join("\n") + "\n\n" : "") + message,
+        config: { systemInstruction: `E\u0219ti Mia, asistenta virtual\u0103 a Mariei Folfa, un tehnician maseur profesionist...` }
       });
       res.json({ reply: response.text });
     } catch (error) {
-      console.error("Eroare Gemini:", error);
       res.status(500).json({ error: "Eroare AI." });
     }
   });

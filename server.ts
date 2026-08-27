@@ -29,11 +29,12 @@ async function startServer() {
 
   app.use(express.json());
 
-  // 1. API Endpoint pentru SALVARE PROGRAMĂRI
+  // 1. API Endpoint pentru SALVARE PROGRAMĂRI + EMAIL
   app.post('/api/book', async (req, res) => {
     try {
       const { name, phone, email, serviceName, date, time } = req.body;
 
+      // PASUL A: Salvare garantată în Firebase
       await addDoc(collection(db, 'programari'), {
          name,
          phone,
@@ -45,23 +46,56 @@ async function startServer() {
       });
       console.log("Programare salvată în Firebase cu succes!");
 
+      // PASUL B: Răspuns instant către site (Clientul nu mai așteaptă)
       res.json({ success: true, message: 'Programare salvată cu succes.' });
+
+      // PASUL C: Trimitere Emailuri în fundal (prin EmailJS HTTP)
+      try {
+        const payloadAdmin = {
+          service_id: 'service_ozdh5vo',
+          template_id: 'template_ttdpsfh',
+          user_id: '9hW5rySbyy76L-RZr',
+          template_params: { nume: name, telefon: phone, email: email || 'Nu a lăsat', serviciu: serviceName, data: date, ora: time }
+        };
+
+        fetch('https://api.emailjs.com/api/v1.0/email/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payloadAdmin)
+        }).then(r => { if(r.ok) console.log("Email Admin trimis!"); }).catch(e => console.error(e));
+
+        if (email && email.includes('@')) {
+          const payloadClient = {
+            service_id: 'service_ozdh5vo',
+            template_id: 'template_faubiae',
+            user_id: '9hW5rySbyy76L-RZr',
+            template_params: { nume: name, email: email, serviciu: serviceName, data: date, ora: time }
+          };
+
+          fetch('https://api.emailjs.com/api/v1.0/email/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payloadClient)
+          }).then(r => { if(r.ok) console.log("Email Client trimis!"); }).catch(e => console.error(e));
+        }
+      } catch (emailErr) {
+        console.error("Eroare la procesarea emailurilor:", emailErr);
+      }
+
     } catch (error) {
-      console.error('Eroare la salvarea în baza de date:', error);
-      res.status(500).json({ error: 'Eroare la salvarea programării.' });
+      console.error('Eroare backend la programare:', error);
+      if (!res.headersSent) res.status(500).json({ error: 'Eroare la salvarea programării.' });
     }
   });
 
-  // 1.5 API Endpoint pentru CITIRE PROGRAMĂRI (Asta lipsea pentru AdminDashboard!)
+  // 1.5 API Endpoint pentru CITIRE PROGRAMĂRI
   app.get(['/api/book', '/api/bookings', '/api/programari'], async (req, res) => {
     try {
       const q = query(collection(db, 'programari'), orderBy('dataCreare', 'desc'));
       const querySnapshot = await getDocs(q);
-      const programari = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      res.json(programari);
+      res.json(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     } catch (error) {
-      console.error("Eroare la citirea programărilor:", error);
-      res.status(500).json({ error: 'Eroare la citirea programărilor din Firebase.' });
+      res.status(500).json({ error: 'Eroare la citirea programărilor.' });
     }
   });
 
@@ -69,15 +103,9 @@ async function startServer() {
   app.post('/api/reviews', async (req, res) => {
     try {
       const { author, rating, text } = req.body;
-      await addDoc(collection(db, 'recenzii'), {
-         author,
-         rating,
-         text,
-         dataCreare: serverTimestamp()
-      });
+      await addDoc(collection(db, 'recenzii'), { author, rating, text, dataCreare: serverTimestamp() });
       res.json({ success: true });
     } catch (error) {
-      console.error("Eroare adaugare recenzie:", error);
       res.status(500).json({ error: 'Eroare la salvarea recenziei.' });
     }
   });
@@ -87,10 +115,8 @@ async function startServer() {
     try {
       const q = query(collection(db, 'recenzii'), orderBy('dataCreare', 'desc'));
       const querySnapshot = await getDocs(q);
-      const recenzii = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      res.json(recenzii);
+      res.json(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     } catch (error) {
-      console.error("Eroare citire recenzii:", error);
       res.status(500).json({ error: 'Eroare la citirea recenziilor.' });
     }
   });
@@ -99,26 +125,15 @@ async function startServer() {
   app.post('/api/chat', async (req, res) => {
     try {
       const { message, history } = req.body;
+      if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: 'GEMINI_API_KEY lipsește.' });
       
-      if (!process.env.GEMINI_API_KEY) {
-         return res.status(500).json({ error: 'GEMINI_API_KEY lipsește.' });
-      }
-
-      const systemInstruction = `Ești Mia, asistenta virtuală a Mariei Folfa, un tehnician maseur profesionist (activă din 2018). Cabinetul este în Localitatea Șanț, strada Principală, nr 931, jud. Bistrița-Năsăud. Răspunzi politicos, prietenos, calm și concis la întrebări despre masaje, beneficii și locație.`;
-
-      const context = history && history.length > 0 
-        ? "Istoric conversație:\n" + history.map((h: any) => `${h.role}: ${h.content}`).join("\n") + "\n\nMesaj nou: " 
-        : "";
-
       const response = await ai.models.generateContent({
         model: 'gemini-3.6-flash',
-        contents: context + message,
-        config: { systemInstruction: systemInstruction }
+        contents: (history && history.length > 0 ? "Istoric:\n" + history.map((h: any) => `${h.role}: ${h.content}`).join("\n") + "\n\n" : "") + message,
+        config: { systemInstruction: `Ești Mia, asistenta virtuală a Mariei Folfa, un tehnician maseur profesionist...` }
       });
-
       res.json({ reply: response.text });
     } catch (error: any) {
-      console.error('Eroare Gemini:', error);
       res.status(500).json({ error: 'Eroare AI.' });
     }
   });
