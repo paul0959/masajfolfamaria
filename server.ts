@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'path';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
-import https from 'https'; // Modulul nativ care rezolvă problema pe Render
+import https from 'https';
 
 // --- IMPORTĂM FIREBASE ---
 import { initializeApp } from 'firebase/app';
@@ -24,7 +24,6 @@ const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || 'MISSING_KEY' });
 
-// Funcție nativă Node.js 100% sigură pentru Render
 function trimiteEmailJS(payload: any) {
   const data = JSON.stringify(payload);
   const req = https.request('https://api.emailjs.com/api/v1.0/email/send', {
@@ -135,9 +134,9 @@ async function startServer() {
       if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: 'GEMINI_API_KEY lipsește.' });
       
       const response = await ai.models.generateContent({
-        model: 'gemini-3.6-flash',
+        model: 'gemini-1.5-flash',
         contents: (history && history.length > 0 ? "Istoric:\n" + history.map((h: any) => `${h.role}: ${h.content}`).join("\n") + "\n\n" : "") + message,
-        config: { systemInstruction: `Ești Mia, asistenta virtuală a Mariei Folfa, un tehnician maseur profesionist...` }
+        config: { systemInstruction: `Ești Mia, asistenta virtuală a Mariei Folfa, un tehnician maseur profesionist (activă din 2018). Cabinetul este în Bistrița, strada Zorilor Nr. 15. Răspunzi politicos, prietenos, calm și concis. Toate tipurile de masaj au durata de 50 de minute și prețul unic de 140 RON.` }
       });
       res.json({ reply: response.text });
     } catch (error: any) {
