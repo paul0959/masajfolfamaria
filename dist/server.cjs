@@ -63,6 +63,17 @@ async function startServer() {
       res.status(500).json({ error: "Eroare la salvarea program\u0103rii." });
     }
   });
+  app.get(["/api/book", "/api/bookings", "/api/programari"], async (req, res) => {
+    try {
+      const q = (0, import_firestore.query)((0, import_firestore.collection)(db, "programari"), (0, import_firestore.orderBy)("dataCreare", "desc"));
+      const querySnapshot = await (0, import_firestore.getDocs)(q);
+      const programari = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      res.json(programari);
+    } catch (error) {
+      console.error("Eroare la citirea program\u0103rilor:", error);
+      res.status(500).json({ error: "Eroare la citirea program\u0103rilor din Firebase." });
+    }
+  });
   app.post("/api/reviews", async (req, res) => {
     try {
       const { author, rating, text } = req.body;

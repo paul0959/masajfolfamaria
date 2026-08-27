@@ -29,12 +29,11 @@ async function startServer() {
 
   app.use(express.json());
 
-  // 1. API Endpoint pentru PROGRAMĂRI (Firebase Garantat)
+  // 1. API Endpoint pentru SALVARE PROGRAMĂRI
   app.post('/api/book', async (req, res) => {
     try {
       const { name, phone, email, serviceName, date, time } = req.body;
 
-      // SALVARE SIGURĂ ÎN FIREBASE
       await addDoc(collection(db, 'programari'), {
          name,
          phone,
@@ -50,6 +49,19 @@ async function startServer() {
     } catch (error) {
       console.error('Eroare la salvarea în baza de date:', error);
       res.status(500).json({ error: 'Eroare la salvarea programării.' });
+    }
+  });
+
+  // 1.5 API Endpoint pentru CITIRE PROGRAMĂRI (Asta lipsea pentru AdminDashboard!)
+  app.get(['/api/book', '/api/bookings', '/api/programari'], async (req, res) => {
+    try {
+      const q = query(collection(db, 'programari'), orderBy('dataCreare', 'desc'));
+      const querySnapshot = await getDocs(q);
+      const programari = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      res.json(programari);
+    } catch (error) {
+      console.error("Eroare la citirea programărilor:", error);
+      res.status(500).json({ error: 'Eroare la citirea programărilor din Firebase.' });
     }
   });
 
