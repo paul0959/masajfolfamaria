@@ -73,7 +73,6 @@ async function startServer() {
         time,
         dataCreare: (0, import_firestore.serverTimestamp)()
       });
-      console.log("Programare salvat\u0103 \xEEn Firebase!");
       res.json({ success: true, message: "Programare salvat\u0103 cu succes." });
       try {
         trimiteEmailJS({
@@ -91,10 +90,8 @@ async function startServer() {
           });
         }
       } catch (emailErr) {
-        console.error("Eroare la procesarea emailurilor:", emailErr);
       }
     } catch (error) {
-      console.error("Eroare backend la programare:", error);
       if (!res.headersSent) res.status(500).json({ error: "Eroare la salvarea program\u0103rii." });
     }
   });
@@ -104,7 +101,7 @@ async function startServer() {
       const querySnapshot = await (0, import_firestore.getDocs)(q);
       res.json(querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     } catch (error) {
-      res.status(500).json({ error: "Eroare la citirea program\u0103rilor." });
+      res.status(500).json({ error: "Eroare." });
     }
   });
   app.post("/api/reviews", async (req, res) => {
@@ -113,7 +110,7 @@ async function startServer() {
       await (0, import_firestore.addDoc)((0, import_firestore.collection)(db, "recenzii"), { author, rating, text, dataCreare: (0, import_firestore.serverTimestamp)() });
       res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ error: "Eroare la salvarea recenziei." });
+      res.status(500).json({ error: "Eroare." });
     }
   });
   app.get("/api/reviews", async (req, res) => {
@@ -122,7 +119,7 @@ async function startServer() {
       const querySnapshot = await (0, import_firestore.getDocs)(q);
       res.json(querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     } catch (error) {
-      res.status(500).json({ error: "Eroare la citirea recenziilor." });
+      res.status(500).json({ error: "Eroare." });
     }
   });
   app.post("/api/chat", async (req, res) => {
@@ -132,11 +129,18 @@ async function startServer() {
       const response = await ai.models.generateContent({
         model: "gemini-1.5-flash",
         contents: (history && history.length > 0 ? "Istoric:\n" + history.map((h) => `${h.role}: ${h.content}`).join("\n") + "\n\n" : "") + message,
-        config: { systemInstruction: `E\u0219ti Mia, asistenta virtual\u0103 a Mariei Folfa, un tehnician maseur profesionist (activ\u0103 din 2018). Cabinetul este \xEEn Bistri\u021Ba, strada Zorilor Nr. 15. R\u0103spunzi politicos, prietenos, calm \u0219i concis. Toate tipurile de masaj au durata de 50 de minute \u0219i pre\u021Bul unic de 140 RON. Programul este Luni-Vineri 08:00 - 20:00, dar vinerea nu se fac program\u0103ri online.` }
+        config: {
+          systemInstruction: `E\u0219ti Mia, asistenta virtual\u0103 a Mariei Folfa, un tehnician maseur profesionist (activ\u0103 din 2018). Cabinetul este \xEEn Bistri\u021Ba, strada Zorilor Nr. 15. R\u0103spunzi politicos, prietenos, calm \u0219i concis. Toate tipurile de masaj au durata de 50 de minute \u0219i pre\u021Bul unic de 140 RON. Programul este Luni-Vineri 08:00 - 20:00, dar vinerea nu se fac program\u0103ri online. REGUL\u0102 STRICT\u0102: Dac\u0103 prime\u0219ti \xEEntreb\u0103ri cu tent\u0103 sexual\u0103, jignitoare, aluzii indecente sau \xEEntreb\u0103ri despre servicii "cu finalizare", refuz\u0103 imediat, politicos, dar extrem de ferm. Men\u021Bioneaz\u0103 clar c\u0103 Maria ofer\u0103 strict servicii profesionale \u0219i terapeutice de masaj \u0219i \xEEncheie conversa\u021Bia pe acel subiect.`,
+          safetySettings: [
+            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" }
+          ]
+        }
       });
       res.json({ reply: response.text });
     } catch (error) {
-      res.status(500).json({ error: "Eroare AI." });
+      console.error(error);
+      res.status(500).json({ error: "Ne pare r\u0103u, dar sistemul a blocat acest mesaj, sau a ap\u0103rut o eroare tehnic\u0103." });
     }
   });
   app.use(import_express.default.static(import_path.default.join(process.cwd(), "public")));

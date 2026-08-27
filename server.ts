@@ -47,87 +47,64 @@ async function startServer() {
 
   app.use(express.json());
 
-  // 1. API Endpoint pentru SALVARE PROGRAMĂRI + EMAIL
+  // API Endpoint pentru SALVARE PROGRAMĂRI + EMAIL
   app.post('/api/book', async (req, res) => {
     try {
       const { name, phone, email, serviceName, date, time } = req.body;
 
-      // PASUL A: Salvare garantată în Firebase
       await addDoc(collection(db, 'programari'), {
-         name,
-         phone,
-         email: email || '',
-         serviceName,
-         date,
-         time,
-         dataCreare: serverTimestamp()
+         name, phone, email: email || '', serviceName, date, time, dataCreare: serverTimestamp()
       });
-      console.log("Programare salvată în Firebase!");
 
-      // PASUL B: Răspuns instant către site
       res.json({ success: true, message: 'Programare salvată cu succes.' });
 
-      // PASUL C: Trimitere Emailuri în fundal
       try {
         trimiteEmailJS({
-          service_id: 'service_ozdh5vo',
-          template_id: 'template_ttdpsfh',
-          user_id: '9hW5rySbyy76L-RZr',
+          service_id: 'service_ozdh5vo', template_id: 'template_ttdpsfh', user_id: '9hW5rySbyy76L-RZr',
           template_params: { nume: name, telefon: phone, email: email || 'Nu a lăsat', serviciu: serviceName, data: date, ora: time }
         });
 
         if (email && email.includes('@')) {
           trimiteEmailJS({
-            service_id: 'service_ozdh5vo',
-            template_id: 'template_faubiae',
-            user_id: '9hW5rySbyy76L-RZr',
+            service_id: 'service_ozdh5vo', template_id: 'template_faubiae', user_id: '9hW5rySbyy76L-RZr',
             template_params: { nume: name, email: email, serviciu: serviceName, data: date, ora: time }
           });
         }
-      } catch (emailErr) {
-        console.error("Eroare la procesarea emailurilor:", emailErr);
-      }
-
+      } catch (emailErr) {}
     } catch (error) {
-      console.error('Eroare backend la programare:', error);
       if (!res.headersSent) res.status(500).json({ error: 'Eroare la salvarea programării.' });
     }
   });
 
-  // 1.5 API Endpoint pentru CITIRE PROGRAMĂRI (Pentru Admin)
+  // API Endpoint pentru CITIRE PROGRAMĂRI (Pentru Admin)
   app.get(['/api/book', '/api/bookings', '/api/programari'], async (req, res) => {
     try {
       const q = query(collection(db, 'programari'), orderBy('dataCreare', 'desc'));
       const querySnapshot = await getDocs(q);
       res.json(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     } catch (error) {
-      res.status(500).json({ error: 'Eroare la citirea programărilor.' });
+      res.status(500).json({ error: 'Eroare.' });
     }
   });
 
-  // 2. API Endpoint pentru ADĂUGARE RECENZII
+  // API Endpoint pentru ADĂUGARE/CITIRE RECENZII
   app.post('/api/reviews', async (req, res) => {
     try {
       const { author, rating, text } = req.body;
       await addDoc(collection(db, 'recenzii'), { author, rating, text, dataCreare: serverTimestamp() });
       res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: 'Eroare la salvarea recenziei.' });
-    }
+    } catch (error) { res.status(500).json({ error: 'Eroare.' }); }
   });
 
-  // 3. API Endpoint pentru CITIRE RECENZII
   app.get('/api/reviews', async (req, res) => {
     try {
       const q = query(collection(db, 'recenzii'), orderBy('dataCreare', 'desc'));
       const querySnapshot = await getDocs(q);
       res.json(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    } catch (error) {
-      res.status(500).json({ error: 'Eroare la citirea recenziilor.' });
-    }
+    } catch (error) { res.status(500).json({ error: 'Eroare.' }); }
   });
 
-  // 4. API Endpoint pentru Chatbot Gemini
+  // API Endpoint pentru Chatbot Gemini
   app.post('/api/chat', async (req, res) => {
     try {
       const { message, history } = req.body;
@@ -136,11 +113,18 @@ async function startServer() {
       const response = await ai.models.generateContent({
         model: 'gemini-1.5-flash',
         contents: (history && history.length > 0 ? "Istoric:\n" + history.map((h: any) => `${h.role}: ${h.content}`).join("\n") + "\n\n" : "") + message,
-        config: { systemInstruction: `Ești Mia, asistenta virtuală a Mariei Folfa, un tehnician maseur profesionist (activă din 2018). Cabinetul este în Bistrița, strada Zorilor Nr. 15. Răspunzi politicos, prietenos, calm și concis. Toate tipurile de masaj au durata de 50 de minute și prețul unic de 140 RON. Programul este Luni-Vineri 08:00 - 20:00, dar vinerea nu se fac programări online.` }
+        config: { 
+          systemInstruction: `Ești Mia, asistenta virtuală a Mariei Folfa, un tehnician maseur profesionist (activă din 2018). Cabinetul este în Bistrița, strada Zorilor Nr. 15. Răspunzi politicos, prietenos, calm și concis. Toate tipurile de masaj au durata de 50 de minute și prețul unic de 140 RON. Programul este Luni-Vineri 08:00 - 20:00, dar vinerea nu se fac programări online. REGULĂ STRICTĂ: Dacă primești întrebări cu tentă sexuală, jignitoare, aluzii indecente sau întrebări despre servicii "cu finalizare", refuză imediat, politicos, dar extrem de ferm. Menționează clar că Maria oferă strict servicii profesionale și terapeutice de masaj și încheie conversația pe acel subiect.`,
+          safetySettings: [
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT' as any, threshold: 'BLOCK_NONE' as any },
+            { category: 'HARM_CATEGORY_HARASSMENT' as any, threshold: 'BLOCK_NONE' as any }
+          ]
+        }
       });
       res.json({ reply: response.text });
     } catch (error: any) {
-      res.status(500).json({ error: 'Eroare AI.' });
+      console.error(error);
+      res.status(500).json({ error: 'Ne pare rău, dar sistemul a blocat acest mesaj, sau a apărut o eroare tehnică.' });
     }
   });
 
