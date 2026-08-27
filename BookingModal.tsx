@@ -117,9 +117,9 @@ export default function BookingModal({ isOpen, onClose, preselectedServiceId }: 
       });
 
       if (response.ok) {
-         // 2. REDIRECȚIONARE WHATSAPP
+         // 2. REDIRECȚIONARE WHATSAPP CU TEXT OFICIAL
          const adminPhone = "40750294688"; 
-         const mesaj = `Bună ziua! Am făcut o nouă programare pe site.%0A%0A*Nume:* ${formData.name}%0A*Telefon:* ${formData.phone}%0A*Serviciu:* ${serviceNameStr}%0A*Data:* ${dateStr}%0A*Ora:* ${selectedTime}%0A%0AConfirmati programarea?`;
+         const mesaj = `Bună ziua! Vă contactez pentru a solicita o programare prin intermediul site-ului. Detaliile sunt următoarele:%0A%0A👤 *Nume:* ${formData.name}%0A📞 *Telefon:* ${formData.phone}%0A💆‍♀️ *Serviciu:* ${serviceNameStr}%0A📅 *Data:* ${dateStr}%0A⏰ *Ora:* ${selectedTime}%0A%0AVă rog să îmi confirmați disponibilitatea. Vă mulțumesc!`;
          const whatsappUrl = `https://wa.me/${adminPhone}?text=${mesaj}`;
          
          // Deschide WhatsApp
