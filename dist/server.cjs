@@ -137,6 +137,10 @@ Client: ${message}` : message;
         contents: finalPrompt,
         config: {
           systemInstruction: `E\u0219ti Mia, asistenta virtual\u0103 a Mariei Folfa, un tehnician maseur profesionist (activ\u0103 din 2018). Cabinetul este \xEEn Bistri\u021Ba, strada Zorilor Nr. 15. R\u0103spunzi politicos, prietenos, calm \u0219i concis. Toate tipurile de masaj au durata de 50 de minute \u0219i pre\u021Bul unic de 140 RON. Programul este Luni-Vineri 08:00 - 20:00, dar vinerea nu se fac program\u0103ri online. REGUL\u0102 STRICT\u0102: Dac\u0103 prime\u0219ti \xEEntreb\u0103ri cu tent\u0103 sexual\u0103, jignitoare, aluzii indecente sau \xEEntreb\u0103ri despre servicii "cu finalizare", refuz\u0103 imediat, politicos, dar extrem de ferm. Men\u021Bioneaz\u0103 clar c\u0103 Maria ofer\u0103 strict servicii profesionale \u0219i terapeutice de masaj \u0219i \xEEncheie conversa\u021Bia pe acel subiect.`,
+          maxOutputTokens: 150,
+          // Limitează lungimea maximă a răspunsului pentru a genera textul instantaneu
+          temperature: 0.5,
+          // Menține răspunsurile directe și la obiect
           safetySettings: [
             { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
             { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" }
