@@ -191,8 +191,10 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 </div>
               </div>
               
-              <div className="bg-white rounded-xl shadow-sm border border-sage-200 overflow-hidden">
-                <table className="w-full text-left border-collapse">
+              {/* Container modificat pentru a permite scroll orizontal pe mobil */}
+              <div className="bg-white rounded-xl shadow-sm border border-sage-200 overflow-x-auto">
+                {/* Lățime minimă forțată pentru a preveni strivirea coloanelor pe mobil */}
+                <table className="w-full text-left border-collapse min-w-[900px]">
                   <thead>
                     <tr className="bg-sage-50 text-sage-900 text-xs uppercase tracking-wider border-b border-sage-200">
                       <th className="p-4 font-bold">Client & Contact</th>
