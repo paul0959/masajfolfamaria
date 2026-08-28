@@ -3,87 +3,73 @@ export interface Service {
   name: string;
   duration: string;
   price: string;
-  benefits: string;
   image: string;
+  benefits: string;
 }
 
 export const services: Service[] = [
   {
-    id: "terapeutic",
-    name: "Masaj Terapeutic",
-    duration: "50 min",
-    price: "140 RON",
-    benefits: "Ameliorează durerile musculare și articulare, corectează postura.",
-    image: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&q=80&w=600"
+    id: 'terapeutic',
+    name: 'Masaj Terapeutic',
+    duration: '50 min',
+    price: '140 RON',
+    image: '/terapeutic.jpg',
+    benefits: 'Ameliorează durerile musculare și articulare, elimină contracturile și accelerează recuperarea fizică.'
   },
   {
-    id: "relaxare",
-    name: "Masaj de Relaxare",
-    duration: "50 min",
-    price: "140 RON",
-    benefits: "Reduce stresul, îmbunătățește circulația și induce o stare profundă de bine.",
-    image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&q=80&w=600"
+    id: 'relaxare',
+    name: 'Masaj de Relaxare',
+    duration: '50 min',
+    price: '140 RON',
+    image: '/relaxare.jpg',
+    benefits: 'Reduce stresul și anxietatea, îmbunătățește calitatea somnului și relaxează profund sistemul nervos.'
   },
   {
-    id: "drenaj",
-    name: "Drenaj Limfatic",
-    duration: "50 min",
-    price: "140 RON",
-    benefits: "Elimină toxinele și reduce retenția de apă din organism.",
-    image: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&q=80&w=600"
+    id: 'drenaj-limfatic',
+    name: 'Drenaj Limfatic',
+    duration: '50 min',
+    price: '140 RON',
+    image: '/drenaj.jpg',
+    benefits: 'Stimulează eliminarea toxinelor, reduce retenția de apă și întărește sistemul imunitar.'
   },
   {
-    id: "ventuze",
-    name: "Terapie cu Ventuze",
-    duration: "50 min",
-    price: "140 RON",
-    benefits: "Decompresie musculară profundă, ideală pentru contracturi severe.",
-    image: "https://images.unsplash.com/photo-1552693673-1bf958298935?auto=format&fit=crop&q=80&w=600"
+    id: 'ventuze',
+    name: 'Terapie cu Ventuze',
+    duration: '50 min',
+    price: '140 RON',
+    image: '/ventuze.jpg',
+    benefits: 'Decomprimă țesuturile, deblochează circulația sanguină și eliberează rapid contracturile profunde.'
   },
   {
-    id: "pietre",
-    name: "Masaj cu Pietre Calde",
-    duration: "50 min",
-    price: "140 RON",
-    benefits: "Relaxează sistemul nervos central prin transferul termic profund.",
-    image: "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&q=80&w=600"
+    id: 'pietre-calde',
+    name: 'Masaj cu Pietre Calde',
+    duration: '50 min',
+    price: '140 RON',
+    image: '/pietre.jpg',
+    benefits: 'Combină căldura rocilor vulcanice cu tehnicile de masaj pentru o relaxare musculară absolută.'
   },
   {
-    id: "reflexoterapie",
-    name: "Reflexoterapie",
-    duration: "50 min",
-    price: "140 RON",
-    benefits: "Stimulează organele interne prin punctele reflexogene din tălpi.",
-    image: "https://images.unsplash.com/photo-1519415510236-718bdfcd89c8?auto=format&fit=crop&q=80&w=600"
+    id: 'reflexoterapie',
+    name: 'Reflexoterapie',
+    duration: '50 min',
+    price: '140 RON',
+    image: '/reflexoterapie.jpg',
+    benefits: 'Stimulează punctele reflexogene din tălpi pentru a echilibra funcțiile organelor interne.'
   },
   {
-    id: "anticelulitic",
-    name: "Masaj Anticelulitic",
-    duration: "50 min",
-    price: "140 RON",
-    benefits: "Remodelează țesutul adipos și îmbunătățește elasticitatea pielii.",
-    image: "https://images.unsplash.com/photo-1519824145371-296894a0daa9?auto=format&fit=crop&q=80&w=600"
+    id: 'anticelulitic',
+    name: 'Masaj Anticelulitic',
+    duration: '50 min',
+    price: '140 RON',
+    image: '/anticelulitic.jpg',
+    benefits: 'Acționează viguros asupra țesutului adipos pentru a diminua aspectul de coajă de portocală.'
   },
   {
-    id: "trigger",
-    name: "Terapia Trigger Points",
-    duration: "50 min",
-    price: "140 RON",
-    benefits: "Dezactivarea punctelor dureroase specifice și eliberarea tensiunii.",
-    image: "https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?auto=format&fit=crop&q=80&w=600"
+    id: 'trigger-points',
+    name: 'Terapie Trigger Points',
+    duration: '50 min',
+    price: '140 RON',
+    image: '/trigger.jpg',
+    benefits: 'Aplică presiune pe punctele specifice de tensiune musculară pentru a dezactiva durerea iradiată.'
   }
 ];
-
-export interface Appointment {
-  id?: string;
-  serviceId: string;
-  serviceName: string;
-  date: string;
-  time: string;
-  name: string;
-  phone: string;
-  email: string;
-  notes: string;
-  status: 'pending' | 'confirmed' | 'cancelled';
-  createdAt: string;
-}
