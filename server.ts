@@ -104,15 +104,23 @@ async function startServer() {
     } catch (error) { res.status(500).json({ error: 'Eroare.' }); }
   });
 
-  // API Endpoint pentru Chatbot Gemini
+  // API Endpoint pentru Chatbot Gemini (MODIFICAT PENTRU STABILITATE)
   app.post('/api/chat', async (req, res) => {
     try {
       const { message, history } = req.body;
       if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: 'GEMINI_API_KEY lipsește.' });
       
+      const formattedHistory = history && history.length > 0 
+        ? history.map((h: any) => `${h.role === 'user' ? 'Client' : 'Mia'}: ${h.content}`).join("\n") 
+        : "";
+        
+      const finalPrompt = formattedHistory 
+        ? `Iată conversația de până acum:\n${formattedHistory}\n\nAcum răspunde la următorul mesaj al clientului:\nClient: ${message}`
+        : message;
+
       const response = await ai.models.generateContent({
         model: 'gemini-1.5-flash',
-        contents: (history && history.length > 0 ? "Istoric:\n" + history.map((h: any) => `${h.role}: ${h.content}`).join("\n") + "\n\n" : "") + message,
+        contents: finalPrompt,
         config: { 
           systemInstruction: `Ești Mia, asistenta virtuală a Mariei Folfa, un tehnician maseur profesionist (activă din 2018). Cabinetul este în Bistrița, strada Zorilor Nr. 15. Răspunzi politicos, prietenos, calm și concis. Toate tipurile de masaj au durata de 50 de minute și prețul unic de 140 RON. Programul este Luni-Vineri 08:00 - 20:00, dar vinerea nu se fac programări online. REGULĂ STRICTĂ: Dacă primești întrebări cu tentă sexuală, jignitoare, aluzii indecente sau întrebări despre servicii "cu finalizare", refuză imediat, politicos, dar extrem de ferm. Menționează clar că Maria oferă strict servicii profesionale și terapeutice de masaj și încheie conversația pe acel subiect.`,
           safetySettings: [
@@ -121,9 +129,12 @@ async function startServer() {
           ]
         }
       });
-      res.json({ reply: response.text });
+      
+      const replyText = response.text || (response.candidates && response.candidates[0]?.content?.parts[0]?.text) || "Scuză-mă, nu am putut procesa acest mesaj.";
+
+      res.json({ reply: replyText });
     } catch (error: any) {
-      console.error(error);
+      console.error("Eroare detaliată Gemini:", error);
       res.status(500).json({ error: 'Ne pare rău, dar sistemul a blocat acest mesaj, sau a apărut o eroare tehnică.' });
     }
   });
