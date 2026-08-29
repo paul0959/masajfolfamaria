@@ -125,7 +125,8 @@ export default function BookingModal({ isOpen, onClose, preselectedServiceId }: 
       });
 
       if (response.ok) {
-         const adminPhone = "40750294688"; 
+         // AICI AM ACTUALIZAT NUMĂRUL TĂU NOU
+         const adminPhone = "40745240799"; 
          const mesajBrut = `Bună ziua! Vă contactez pentru a solicita o programare prin intermediul site-ului. Detaliile sunt următoarele:\n\n👤 *Nume:* ${formData.name}\n📞 *Telefon:* ${formData.phone}\n💆‍♀️ *Serviciu:* ${serviceNameStr}\n📅 *Data:* ${dateStr}\n⏰ *Ora:* ${selectedTime}\n\nVă rog să îmi confirmați disponibilitatea. Vă mulțumesc!`;
          
          const whatsappUrl = `https://wa.me/${adminPhone}?text=${encodeURIComponent(mesajBrut)}`;
